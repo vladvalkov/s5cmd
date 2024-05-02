@@ -7,72 +7,71 @@ import (
 	"github.com/cheggaaa/pb/v3"
 )
 
-type ProgressBar interface {
-	Start()
-	Finish()
-	IncrementCompletedObjects()
-	IncrementTotalObjects()
-	AddCompletedBytes(bytes int64)
-	AddTotalBytes(bytes int64)
-}
-
-type NoOp struct{}
-
-func (pb *NoOp) Start() {}
-
-func (pb *NoOp) Finish() {}
-
-func (pb *NoOp) IncrementCompletedObjects() {}
-
-func (pb *NoOp) IncrementTotalObjects() {}
-
-func (pb *NoOp) AddCompletedBytes(bytes int64) {}
-
-func (pb *NoOp) AddTotalBytes(bytes int64) {}
-
-type CommandProgressBar struct {
+type CopyProgressBar struct {
 	totalObjects     int64
 	completedObjects int64
 	progressbar      *pb.ProgressBar
 }
 
-var _ ProgressBar = (*CommandProgressBar)(nil)
+const copyProgressbarTemplate = `{{percent . | green}} {{bar . " " "━" "━" "─" " " | green}} {{counters . | green}} {{speed . "(%s/s)" | red}} {{rtime . "%s left" | blue}} {{ string . "objects" | yellow}}`
 
-const progressbarTemplate = `{{percent . | green}} {{bar . " " "━" "━" "─" " " | green}} {{counters . | green}} {{speed . "(%s/s)" | red}} {{rtime . "%s left" | blue}} {{ string . "objects" | yellow}}`
-
-func New() *CommandProgressBar {
-	return &CommandProgressBar{
+func NewCopy() *CopyProgressBar {
+	return &CopyProgressBar{
 		progressbar: pb.New64(0).
 			Set(pb.Bytes, true).
 			Set(pb.SIBytesPrefix, true).
 			SetWidth(128).
 			Set("objects", fmt.Sprintf("(%d/%d)", 0, 0)).
-			SetTemplateString(progressbarTemplate),
+			SetTemplateString(copyProgressbarTemplate),
 	}
 }
 
-func (cp *CommandProgressBar) Start() {
+func (cp *CopyProgressBar) Start() {
+	if cp == nil {
+		return
+	}
+
 	cp.progressbar.Start()
 }
 
-func (cp *CommandProgressBar) Finish() {
+func (cp *CopyProgressBar) Finish() {
+	if cp == nil {
+		return
+	}
+
 	cp.progressbar.Finish()
 }
 
-func (cp *CommandProgressBar) IncrementCompletedObjects() {
+func (cp *CopyProgressBar) IncrementCompletedObjects() {
+	if cp == nil {
+		return
+	}
+
 	atomic.AddInt64(&cp.completedObjects, 1)
 	cp.progressbar.Set("objects", fmt.Sprintf("(%d/%d)", cp.completedObjects, cp.totalObjects))
 }
 
-func (cp *CommandProgressBar) IncrementTotalObjects() {
+func (cp *CopyProgressBar) IncrementTotalObjects() {
+	if cp == nil {
+		return
+	}
+
 	atomic.AddInt64(&cp.totalObjects, 1)
 	cp.progressbar.Set("objects", fmt.Sprintf("(%d/%d)", cp.completedObjects, cp.totalObjects))
 }
 
-func (cp *CommandProgressBar) AddCompletedBytes(bytes int64) {
+func (cp *CopyProgressBar) AddCompletedBytes(bytes int64) {
+	if cp == nil {
+		return
+	}
+
 	cp.progressbar.Add64(bytes)
 }
 
-func (cp *CommandProgressBar) AddTotalBytes(bytes int64) {
+func (cp *CopyProgressBar) AddTotalBytes(bytes int64) {
+	if cp == nil {
+		return
+	}
+
 	cp.progressbar.AddTotal(bytes)
 }

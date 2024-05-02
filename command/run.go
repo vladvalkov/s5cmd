@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/peak/s5cmd/v2/progressbar"
 	"io"
 	"os"
 	"strings"
@@ -62,28 +63,47 @@ func NewRunCommand() *cli.Command {
 
 			return NewRun(c, reader).Run(c.Context)
 		},
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "show-progress",
+				Aliases: []string{"sp"},
+				Usage:   "show a progress bar",
+			},
+		},
 	}
 }
 
 type Run struct {
-	c      *cli.Context
-	reader io.Reader
+	c           *cli.Context
+	reader      io.Reader
+	progressbar *progressbar.RunProgressBar
 
 	// flags
 	numWorkers int
 }
 
 func NewRun(c *cli.Context, r io.Reader) Run {
+
+	var runProgressBar *progressbar.RunProgressBar
+
+	if c.Bool("show-progress") {
+		runProgressBar = progressbar.NewRun()
+	}
+
 	return Run{
-		c:          c,
-		reader:     r,
-		numWorkers: c.Int("numworkers"),
+		c:           c,
+		reader:      r,
+		progressbar: runProgressBar,
+		numWorkers:  c.Int("numworkers"),
 	}
 }
 
 func (r Run) Run(ctx context.Context) error {
 	pm := parallel.New(r.numWorkers)
 	defer pm.Close()
+
+	r.progressbar.Start()
+	defer r.progressbar.Finish()
 
 	waiter := parallel.NewWaiter()
 
@@ -99,6 +119,7 @@ func (r Run) Run(ctx context.Context) error {
 	reader := NewReader(ctx, r.reader)
 
 	lineno := -1
+
 	for line := range reader.Read() {
 		lineno++
 
@@ -127,9 +148,13 @@ func (r Run) Run(ctx context.Context) error {
 			continue
 		}
 
-		fn := func() error {
-			subcmd := fields[0]
+		r.progressbar.AddTotalCommands(1)
 
+		fn := func() error {
+			defer r.progressbar.AddCompletedCommands(1)
+
+			subcmd := fields[0]
+			
 			cmd := AppCommand(subcmd)
 			if cmd == nil {
 				err := fmt.Errorf("%q command (line: %v) not found", subcmd, lineno)

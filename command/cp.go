@@ -306,7 +306,7 @@ type Copy struct {
 	contentDisposition    string
 	metadata              map[string]string
 	showProgress          bool
-	progressbar           progressbar.ProgressBar
+	progressbar           *progressbar.CopyProgressBar
 
 	// patterns
 	excludePatterns []*regexp.Regexp
@@ -339,12 +339,10 @@ func NewCopy(c *cli.Context, deleteSource bool) (*Copy, error) {
 		return nil, err
 	}
 
-	var commandProgressBar progressbar.ProgressBar
+	var commandProgressBar *progressbar.CopyProgressBar
 
 	if c.Bool("show-progress") && !(src.Type == dst.Type) {
-		commandProgressBar = progressbar.New()
-	} else {
-		commandProgressBar = &progressbar.NoOp{}
+		commandProgressBar = progressbar.NewCopy()
 	}
 
 	metadata, ok := c.Value("metadata").(MapValue)
@@ -1057,13 +1055,13 @@ func guessContentType(file *os.File) string {
 }
 
 type countingReaderWriter struct {
-	pb      progressbar.ProgressBar
+	pb      *progressbar.CopyProgressBar
 	fp      *os.File
 	signMap map[int64]struct{}
 	mu      sync.Mutex
 }
 
-func newCountingReaderWriter(file *os.File, pb progressbar.ProgressBar) *countingReaderWriter {
+func newCountingReaderWriter(file *os.File, pb *progressbar.CopyProgressBar) *countingReaderWriter {
 	return &countingReaderWriter{
 		pb:      pb,
 		fp:      file,
