@@ -814,16 +814,7 @@ func (c Copy) shouldOverride(ctx context.Context, srcurl *url.URL, dsturl *url.U
 		return nil
 	}
 
-	srcClient, err := storage.NewClient(ctx, srcurl, c.storageOpts)
-	if err != nil {
-		return err
-	}
-
-	srcObj, err := statObject(ctx, srcurl, srcClient)
-	if err != nil {
-		return err
-	}
-
+	// Check destination first to optimise noClobber param
 	dstClient, err := storage.NewClient(ctx, dsturl, c.storageOpts)
 	if err != nil {
 		return err
@@ -842,6 +833,16 @@ func (c Copy) shouldOverride(ctx context.Context, srcurl *url.URL, dsturl *url.U
 	var stickyErr error
 	if c.noClobber {
 		stickyErr = errorpkg.ErrObjectExists
+	}
+
+	srcClient, err := storage.NewClient(ctx, srcurl, c.storageOpts)
+	if err != nil {
+		return err
+	}
+
+	srcObj, err := statObject(ctx, srcurl, srcClient)
+	if err != nil {
+		return err
 	}
 
 	if c.ifSizeDiffer {
@@ -937,7 +938,6 @@ func prepareLocalDestination(
 			dsturl = obj.URL.Join(objname)
 		}
 	}
-
 	return dsturl, nil
 }
 
